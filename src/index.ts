@@ -33,9 +33,12 @@ let failed = 0;
 
 for (const w of watchlist) {
   try {
-    const best = pickBest(filterItems(await feed(w.query), w));
+    const items = await feed(w.query);
+    const best = pickBest(filterItems(items, w));
     const topic = w.profiles?.ntfy_topic ?? null;
-    if (!config.DRY_RUN) await recordScan(w.id, best.length);
+    // scan health answers "does this search find the show at all?", so it ignores min_episode;
+    // otherwise a "start from episode 12" row would look broken until episode 12 airs
+    if (!config.DRY_RUN) await recordScan(w.id, pickBest(filterItems(items, { ...w, min_episode: -1 })).length);
 
     // Mark what's on Nyaa as seen without sending anything:
     // - first scan of a new row (spam guard, per season+episode so a new season still notifies)

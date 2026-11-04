@@ -44,7 +44,8 @@ function Chip({ tone, icon, children, title }: { tone: "muted" | "ok" | "warn" |
 
 const episodeLabel = (season: number, episode: number) => `${season > 1 ? `S${season} · ` : ""}Ep ${episode}`;
 
-function StatusChip({ entry }: { entry: WatchEntry }) {
+function StatusChip({ entry, airing }: { entry: WatchEntry; airing?: Airing }) {
+  const unaired = airing?.status === "NOT_YET_RELEASED" || (airing?.nextAiringEpisode?.episode ?? Infinity) <= 1;
   switch (health(entry)) {
     case "paused":
       return <Chip tone="muted" icon={<PauseIcon />}>Paused</Chip>;
@@ -55,6 +56,8 @@ function StatusChip({ entry }: { entry: WatchEntry }) {
         </Chip>
       );
     case "no-matches":
+      // nothing on Nyaa is expected before the first episode airs
+      if (unaired) return <Chip tone="muted" icon={<CalendarClockIcon />}>Not out yet</Chip>;
       return (
         <Chip tone="warn" icon={<TriangleAlertIcon />} title="The last scan found no 1080p English releases. Check the Nyaa search.">
           No matches on Nyaa
@@ -145,7 +148,7 @@ export function AnimeCard({
         </div>
         {meta && <p className="mt-0.5 truncate text-[0.8125rem] text-muted-foreground">{meta}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3">
-          <StatusChip entry={entry} />
+          <StatusChip entry={entry} airing={airing} />
           {entry.active && <AiringChip airing={airing} now={now} />}
         </div>
       </div>

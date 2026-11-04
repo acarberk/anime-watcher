@@ -34,7 +34,7 @@ export function ResponsiveModal({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
+    <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[92dvh]">
         <DrawerHeader className="border-b pb-3 text-left">
           <DrawerTitle className="text-lg">{title}</DrawerTitle>
