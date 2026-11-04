@@ -3,7 +3,7 @@
 import { useSearchParams } from "react-router";
 import { AppShell } from "@/app/app-layout";
 import { ResponsiveModal } from "@/components/responsive-modal";
-import { SetupFlow } from "@/features/notifications/setup-flow";
+import { SetupFlow, type Platform } from "@/features/notifications/setup-flow";
 import { SetupLayout } from "@/features/notifications/setup-page";
 import { SettingsView } from "@/features/settings/settings-view";
 import { AnimeForm } from "@/features/watchlist/anime-form";
@@ -108,7 +108,13 @@ export function Gallery() {
     case "setup-3":
       return (
         <SetupLayout>
-          <SetupFlow initialStep={Number(view.at(-1)) as 1 | 2 | 3} onTest={wait} onFinish={noop} finishing={false} />
+          <SetupFlow
+            initialStep={Number(view.at(-1)) as 1 | 2 | 3}
+            platform={(params.get("platform") as Platform | null) ?? undefined}
+            onTest={wait}
+            onFinish={noop}
+            finishing={false}
+          />
         </SetupLayout>
       );
     case "settings":

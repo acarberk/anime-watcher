@@ -75,11 +75,11 @@ function NotificationSection({
   }
 
   return (
-    <Section icon={<BellRingIcon />} title="Notifications" description="New episodes are pushed to this ntfy topic.">
+    <Section icon={<BellRingIcon />} title="Notifications" description="Alerts are sent to the app on your phone.">
       {editing ? (
         <div className="space-y-3">
           <Input
-            aria-label="ntfy topic"
+            aria-label="Connection code"
             className="font-mono"
             spellCheck={false}
             autoComplete="off"
@@ -88,11 +88,11 @@ function NotificationSection({
             onChange={(e) => setDraft(e.target.value)}
           />
           <p className="text-[0.8125rem] text-muted-foreground">
-            Subscribe to the new topic in the ntfy app before saving, or you'll miss notifications.
+            Add the new code in the app before saving, or alerts will stop arriving.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button size="xl" disabled={!isValidTopic(draft) || busy !== null} onClick={() => run("save", () => onSave(draft.trim()), "Topic saved.")}>
-              {busy === "save" && <Spinner />} Save topic
+            <Button size="xl" disabled={!isValidTopic(draft) || busy !== null} onClick={() => run("save", () => onSave(draft.trim()), "Saved.")}>
+              {busy === "save" && <Spinner />} Save code
             </Button>
             <Button variant="outline" size="xl" onClick={() => setDraft(randomTopic())}>
               <RefreshCwIcon /> Generate
@@ -104,13 +104,13 @@ function NotificationSection({
         </div>
       ) : (
         <div className="space-y-3">
-          {topic ? <TopicDisplay topic={topic} /> : <p className="text-sm text-muted-foreground">No topic yet.</p>}
+          {topic ? <TopicDisplay topic={topic} /> : <p className="text-sm text-muted-foreground">Not connected yet.</p>}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="xl" disabled={!topic || busy !== null} onClick={() => run("test", () => onTest(topic!), "Test notification sent.")}>
+            <Button variant="outline" size="xl" disabled={!topic || busy !== null} onClick={() => run("test", () => onTest(topic!), "Test alert sent. Check your phone.")}>
               {busy === "test" ? <Spinner /> : <SendIcon />} Send test
             </Button>
             <Button variant="ghost" size="xl" onClick={() => setEditing(true)}>
-              Change topic
+              Change code
             </Button>
           </div>
         </div>

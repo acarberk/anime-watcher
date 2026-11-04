@@ -1,48 +1,85 @@
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  BellRingIcon,
-  CircleCheckBigIcon,
-  ExternalLinkIcon,
-  RefreshCwIcon,
-  SendIcon,
-  SmartphoneIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, BellRingIcon, CircleCheckBigIcon, ExternalLinkIcon, SendIcon, SmartphoneIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
-import { isValidTopic, NTFY_URL, randomTopic } from "./api";
+import { isValidTopic, randomTopic } from "./api";
 import { TopicDisplay } from "./topic-display";
+
+// The delivery app (ntfy) and its "topic" are implementation details: the user only installs an app and connects
+// their phone. The topic is generated for them and only surfaces as a "code" where iOS needs it pasted by hand.
 
 const STORES = [
   { name: "App Store", note: "iPhone & iPad", href: "https://apps.apple.com/app/ntfy/id1625396347" },
   { name: "Google Play", note: "Android", href: "https://play.google.com/store/apps/details?id=io.heckel.ntfy" },
-  { name: "F-Droid", note: "Android, open source", href: "https://f-droid.org/packages/io.heckel.ntfy/" },
 ];
+
+export type Platform = "ios" | "android" | "desktop";
+const detectPlatform = (): Platform =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    ? "ios"
+    : /Android/i.test(navigator.userAgent)
+      ? "android"
+      : "desktop";
+
+const connectLink = (code: string) => `ntfy://ntfy.sh/${code}`;
 
 function Steps({ step }: { step: number }) {
   return (
-    <div className="mb-6 space-y-2">
-      <p className="text-sm font-medium text-muted-foreground">Step {step} of 3</p>
-      <div className="grid grid-cols-3 gap-1.5" aria-hidden="true">
-        {[1, 2, 3].map((s) => (
-          <span key={s} className={cn("h-1.5 rounded-full transition-colors", s <= step ? "bg-primary" : "bg-muted")} />
-        ))}
-      </div>
+    <div className="mb-6 grid grid-cols-3 gap-1.5" role="progressbar" aria-valuemin={1} aria-valuemax={3} aria-valuenow={step} aria-label={`Step ${step} of 3`}>
+      {[1, 2, 3].map((s) => (
+        <span key={s} className={cn("h-1.5 rounded-full transition-colors", s <= step ? "bg-primary" : "bg-muted")} />
+      ))}
     </div>
   );
 }
 
-function Heading({ title, children }: { title: string; children: React.ReactNode }) {
+function Heading({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="mb-6 space-y-2">
       <h1 className="text-2xl font-semibold tracking-tight md:text-[1.75rem]">{title}</h1>
-      <p className="text-[0.9375rem] text-pretty text-muted-foreground">{children}</p>
+      {children && <p className="text-[0.9375rem] text-pretty text-muted-foreground">{children}</p>}
+    </div>
+  );
+}
+
+function ConnectStep({ code, platform }: { code: string; platform: Platform }) {
+  if (platform === "android") {
+    return (
+      <div className="space-y-4">
+        <Button asChild size="xl" className="w-full">
+          <a href={connectLink(code)}>
+            <SmartphoneIcon /> Connect this phone
+          </a>
+        </Button>
+        <p className="text-center text-[0.8125rem] text-muted-foreground">Tap Subscribe when the app opens.</p>
+      </div>
+    );
+  }
+  if (platform === "ios") {
+    return (
+      <div className="space-y-4">
+        <TopicDisplay topic={code} />
+        <ol className="space-y-2 text-[0.9375rem]">
+          <li><span className="text-muted-foreground">1.</span> Open the app and tap <span className="font-medium">+</span></li>
+          <li><span className="text-muted-foreground">2.</span> Paste the code and tap <span className="font-medium">Subscribe</span></li>
+        </ol>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-5 rounded-2xl border bg-card p-5 sm:grid-cols-[auto_1fr] sm:items-center">
+      <div className="mx-auto rounded-xl bg-white p-3">
+        <QRCodeSVG value={connectLink(code)} size={148} marginSize={0} aria-label="QR code to connect your phone" />
+      </div>
+      <div className="space-y-3 text-[0.9375rem]">
+        <p><span className="font-medium">Android:</span> scan the code with your camera, then tap Subscribe.</p>
+        <p><span className="font-medium">iPhone:</span> open the app, tap +, and enter this code:</p>
+        <TopicDisplay topic={code} />
+      </div>
     </div>
   );
 }
@@ -50,32 +87,33 @@ function Heading({ title, children }: { title: string; children: React.ReactNode
 export function SetupFlow({
   initialTopic,
   initialStep = 1,
+  platform: forcedPlatform,
   onTest,
   onFinish,
   finishing,
 }: {
   initialTopic?: string | null;
   initialStep?: 1 | 2 | 3;
+  platform?: Platform;
   onTest: (topic: string) => Promise<void>;
   onFinish: (topic: string) => void;
   finishing: boolean;
 }) {
+  const [platform] = useState<Platform>(() => forcedPlatform ?? detectPlatform());
   const [step, setStep] = useState<number>(initialStep);
-  const [source, setSource] = useState<"new" | "own">(initialTopic ? "own" : "new");
-  const [generated, setGenerated] = useState(() => randomTopic());
-  const [own, setOwn] = useState(initialTopic ?? "");
+  const [code, setCode] = useState(() => initialTopic ?? randomTopic());
+  const [usingOwn, setUsingOwn] = useState(false);
   const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "missing">("idle");
-  const topic = source === "new" ? generated : own.trim();
-  const topicOk = isValidTopic(topic);
+  const codeOk = isValidTopic(code);
 
   async function test() {
     setTestState("sending");
     try {
-      await onTest(topic);
+      await onTest(code);
       setTestState("sent");
-    } catch (e) {
+    } catch {
       setTestState("idle");
-      toast.error(e instanceof Error ? e.message : "Couldn't reach ntfy.");
+      toast.error("Couldn't send the test. Check your connection and try again.");
     }
   }
 
@@ -85,18 +123,15 @@ export function SetupFlow({
 
       {step === 1 && (
         <>
-          <Heading title="Get the ntfy app">
-            Notifications are delivered by ntfy, a free push app. No account needed — you'll subscribe to a private topic in the
-            next step.
-          </Heading>
-          <ul className="grid gap-2 sm:grid-cols-3">
-            {STORES.map((s) => (
+          <Heading title="Get alerts on your phone">Install the free app that delivers your episode alerts.</Heading>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {STORES.filter((s) => platform === "desktop" || (platform === "ios") === (s.name === "App Store")).map((s) => (
               <li key={s.name}>
                 <a
                   href={s.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-full items-center justify-between gap-2 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 sm:flex-col sm:items-start"
+                  className="flex items-center justify-between gap-2 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40"
                 >
                   <span>
                     <span className="block font-medium">{s.name}</span>
@@ -108,139 +143,92 @@ export function SetupFlow({
             ))}
           </ul>
           <Button size="xl" className="mt-8 w-full sm:w-auto" onClick={() => setStep(2)}>
-            I have the app <ArrowRightIcon />
+            I've installed it <ArrowRightIcon />
           </Button>
         </>
       )}
 
       {step === 2 && (
         <>
-          <Heading title="Subscribe to your topic">
-            A topic is your private notification channel. Anyone who knows it can read it, so keep it long and unguessable.
-          </Heading>
-
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={source}
-            onValueChange={(v) => v && setSource(v as "new" | "own")}
-            className="mb-4 w-full"
-            aria-label="Topic"
-          >
-            <ToggleGroupItem value="new" className="h-10 flex-1">Create a new one</ToggleGroupItem>
-            <ToggleGroupItem value="own" className="h-10 flex-1">I already have one</ToggleGroupItem>
-          </ToggleGroup>
-
-          {source === "new" ? (
-            <div className="space-y-2">
-              <TopicDisplay topic={generated} />
-              <Button variant="link" className="h-auto px-0 text-muted-foreground" onClick={() => setGenerated(randomTopic())}>
-                <RefreshCwIcon /> Generate another
-              </Button>
-            </div>
-          ) : (
+          <Heading title="Connect your phone" />
+          {usingOwn ? (
             <div className="space-y-1.5">
               <Input
-                aria-label="Your ntfy topic"
-                placeholder="anime-…"
+                aria-label="Your code"
+                placeholder="Paste your code"
                 autoComplete="off"
                 spellCheck={false}
                 className="font-mono"
-                value={own}
-                aria-invalid={!!own && !topicOk}
-                onChange={(e) => setOwn(e.target.value)}
+                value={code}
+                aria-invalid={!!code && !codeOk}
+                onChange={(e) => setCode(e.target.value.trim())}
               />
-              {own && !topicOk && (
-                <p className="text-sm text-destructive">Use 8–64 letters, numbers, dashes or underscores.</p>
-              )}
+              {code && !codeOk && <p className="text-sm text-destructive">That code doesn't look right.</p>}
             </div>
+          ) : (
+            <ConnectStep code={code} platform={platform} />
           )}
-
-          <div className="mt-6 grid gap-4 rounded-2xl border bg-card p-4 md:grid-cols-[auto_1fr] md:items-center md:gap-6 md:p-5">
-            {/* desktop: scan from the phone; phones: open the app directly */}
-            {topicOk && (
-              <div className="hidden rounded-xl bg-white p-3 md:block">
-                <QRCodeSVG value={`${NTFY_URL}/${topic}`} size={136} marginSize={0} aria-label="QR code for your topic" />
-              </div>
-            )}
-            <ol className="space-y-2.5 text-sm">
-              <li className="hidden md:block">
-                <span className="font-medium">Scan the code with your phone</span>, or in the ntfy app:
-              </li>
-              <li>
-                <span className="text-muted-foreground">1.</span> Tap <span className="font-medium">+</span> to subscribe to a topic
-              </li>
-              <li>
-                <span className="text-muted-foreground">2.</span> Paste the topic and keep the server <span className="font-medium">ntfy.sh</span>
-              </li>
-              <li>
-                <span className="text-muted-foreground">3.</span> Tap <span className="font-medium">Subscribe</span>
-              </li>
-            </ol>
-            {topicOk && (
-              <Button asChild variant="outline" size="xl" className="md:hidden">
-                <a href={`ntfy://ntfy.sh/${topic}`}>
-                  <SmartphoneIcon /> Open in ntfy (Android)
-                </a>
-              </Button>
-            )}
-          </div>
 
           <div className="mt-8 flex gap-2">
             <Button variant="ghost" size="xl" onClick={() => setStep(1)}>
               <ArrowLeftIcon /> Back
             </Button>
-            <Button size="xl" className="flex-1 sm:flex-none" disabled={!topicOk} onClick={() => setStep(3)}>
-              I've subscribed <ArrowRightIcon />
+            <Button size="xl" className="flex-1 sm:flex-none" disabled={!codeOk} onClick={() => setStep(3)}>
+              Done <ArrowRightIcon />
             </Button>
           </div>
+          <button
+            type="button"
+            className="mt-6 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            onClick={() => {
+              setUsingOwn((u) => !u);
+              setCode(usingOwn ? randomTopic() : "");
+            }}
+          >
+            {usingOwn ? "Use a new code instead" : "Already connected the app before? Use your existing code"}
+          </button>
         </>
       )}
 
       {step === 3 && (
         <>
-          <Heading title="Send a test">Make sure notifications reach your phone before you add any anime.</Heading>
-
+          <Heading title="Send a test" />
           <div className="rounded-2xl border bg-card p-5 text-center">
             {testState === "sent" ? (
               <div className="space-y-4">
                 <CircleCheckBigIcon className="mx-auto size-10 text-success" />
-                <p className="font-medium">Sent! Did it show up on your phone?</p>
+                <p className="font-medium">Did it show up on your phone?</p>
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                  <Button size="xl" disabled={finishing} onClick={() => onFinish(topic)}>
-                    {finishing && <Spinner />} Yes, finish setup
+                  <Button size="xl" disabled={finishing} onClick={() => onFinish(code)}>
+                    {finishing && <Spinner />} Yes, I'm all set
                   </Button>
                   <Button variant="outline" size="xl" onClick={() => setTestState("missing")}>
-                    No, nothing arrived
+                    No
                   </Button>
                 </div>
               </div>
             ) : testState === "missing" ? (
               <div className="space-y-4 text-left">
-                <p className="font-medium">Let's check a few things</p>
+                <p className="font-medium">A few things to check</p>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• The topic in the app must match exactly: <code className="font-mono text-foreground">{topic}</code></li>
-                  <li>• The server in the app should be ntfy.sh.</li>
-                  <li>• Notifications for ntfy must be allowed in your phone's settings.</li>
-                  <li>• On Android, battery saver can delay notifications for a few minutes.</li>
+                  <li>• The app shows your code in its list.</li>
+                  <li>• Notifications for the app are allowed in your phone's settings.</li>
+                  <li>• Battery saver can delay alerts by a few minutes.</li>
                 </ul>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button size="xl" onClick={test}>
-                    <SendIcon /> Send again
+                    <SendIcon /> Try again
                   </Button>
                   <Button variant="ghost" size="xl" onClick={() => setStep(2)}>
-                    Change topic
+                    Reconnect
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
                 <BellRingIcon className="mx-auto size-10 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  We'll send a notification to <code className="font-mono text-foreground">{topic}</code>.
-                </p>
                 <Button size="xl" disabled={testState === "sending"} onClick={test}>
-                  {testState === "sending" ? <Spinner /> : <SendIcon />} Send test notification
+                  {testState === "sending" ? <Spinner /> : <SendIcon />} Send a test alert
                 </Button>
               </div>
             )}
@@ -251,8 +239,8 @@ export function SetupFlow({
               <ArrowLeftIcon /> Back
             </Button>
             {testState !== "sent" && (
-              <Button variant="link" className="text-muted-foreground" disabled={finishing} onClick={() => onFinish(topic)}>
-                Skip the test and finish
+              <Button variant="link" className="text-muted-foreground" disabled={finishing || !codeOk} onClick={() => onFinish(code)}>
+                Skip
               </Button>
             )}
           </div>

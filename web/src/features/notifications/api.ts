@@ -49,5 +49,5 @@ export async function sendTestNotification(topic: string) {
       tags: ["tv"],
     }),
   });
-  if (!res.ok) throw new Error(`ntfy responded with ${res.status}`);
+  if (!res.ok) throw new Error("Couldn't send the test alert. Try again in a moment.");
 }
