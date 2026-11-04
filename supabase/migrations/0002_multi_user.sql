@@ -1,20 +1,20 @@
--- Çok kullanıcılı yapı: her kullanıcının kendi watchlist'i ve bildirim kanalı var.
+-- Multi-user: every user has their own watchlist and notification channel.
 create table profiles (
   user_id     uuid primary key default auth.uid() references auth.users(id) on delete cascade,
-  ntfy_topic  text,                         -- kullanıcının ntfy topic'i; boşsa bölümler bildirimsiz görüldü sayılır
+  ntfy_topic  text,                         -- the user's ntfy topic; while empty, episodes are marked seen silently
   created_at  timestamptz not null default now()
 );
 
--- null user_id = CLI ile service_role'den eklenmiş kayıt; env'deki kanallara gider, arayüzde görünmez
+-- null user_id = row added via the CLI with service_role; notified through the env channels, hidden from the UI
 alter table watchlist add column user_id uuid default auth.uid() references profiles(user_id) on delete cascade;
 create index on watchlist (user_id);
 
--- İlk tarama cron'da: seeded=false olan kayıtta Nyaa'daki mevcut bölümler bildirimsiz görüldü sayılır.
--- Var olan kayıtlar true olur, yeni kayıtlar false başlar.
+-- First scan happens in the cron: for a row with seeded=false, what's already on Nyaa is marked seen without notifying.
+-- Existing rows become true, new rows start false.
 alter table watchlist add column seeded boolean not null default true;
 alter table watchlist alter column seeded set default false;
 
--- Arayüz publishable key ile çalışır: her kullanıcı yalnızca kendi satırlarını görür
+-- The web app uses the publishable key: each user only sees their own rows
 alter table profiles enable row level security;
 
 create policy "own profile" on profiles for all to authenticated

@@ -1,7 +1,7 @@
 import { config } from "../config";
 import type { Notification } from "./index";
 
-// JSON publish instead of Title/Click headers: fetch rejects non-Latin-1 header values (🆕, ö)
+// JSON publish instead of Title/Click headers: fetch rejects non-Latin-1 header values (e.g. the 🆕 emoji)
 export async function ntfy(n: Notification, topic = config.NTFY_TOPIC): Promise<void> {
   const res = await fetch(config.NTFY_URL, {
     method: "POST",

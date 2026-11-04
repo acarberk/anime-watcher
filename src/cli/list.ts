@@ -1,7 +1,7 @@
 import { db, must, type WatchItem } from "../db";
 
 const rows: WatchItem[] = must(await db.from("watchlist").select("*").order("created_at"));
-if (!rows.length) console.log("Watchlist boş.");
+if (!rows.length) console.log("Watchlist is empty.");
 else
   console.table(
     rows.map((w) => ({

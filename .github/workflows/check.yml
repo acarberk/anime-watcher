@@ -1,7 +1,7 @@
 name: check
 on:
   schedule:
-    - cron: "7,37 * * * *" # 30 dk'da bir, :00 yoğunluğundan kaçmak için kaydırılmış
+    - cron: "7,37 * * * *" # every 30 min, offset from :00 to avoid the top-of-hour rush
   workflow_dispatch:
     inputs:
       dry_run:

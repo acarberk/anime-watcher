@@ -11,7 +11,7 @@ export async function telegram(n: Notification): Promise<void> {
       chat_id: config.TELEGRAM_CHAT_ID,
       text: `<b>${escapeHtml(n.title)}</b>\n${escapeHtml(n.body)}`,
       parse_mode: "HTML",
-      reply_markup: { inline_keyboard: [[{ text: "Nyaa'da aç", url: n.url }]] },
+      reply_markup: { inline_keyboard: [[{ text: "Open on Nyaa", url: n.url }]] },
     }),
     signal: AbortSignal.timeout(15_000),
   });

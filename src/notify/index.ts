@@ -15,7 +15,7 @@ const senders: Record<Channel, (n: Notification) => Promise<void>> = { ntfy: (n)
 export function formatNotification(w: Pick<WatchItem, "title">, c: Candidate): Notification {
   const season = c.season > 1 ? ` S${c.season}` : "";
   return {
-    title: `🆕 ${w.title}${season} — Bölüm ${c.episode}`,
+    title: `🆕 ${w.title}${season} — Episode ${c.episode}`,
     body: [`${c.resolution}p`, c.group, c.size, `${c.seeders} seeder`].filter(Boolean).join(" · "),
     url: c.guid,
   };

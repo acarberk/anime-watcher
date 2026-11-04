@@ -11,7 +11,7 @@
     "watch:add": "tsx src/cli/add.ts",
     "watch:list": "tsx src/cli/list.ts",
     "watch:remove": "tsx src/cli/remove.ts",
-    "test": "vitest run",
+    "test": "vitest run --dir tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

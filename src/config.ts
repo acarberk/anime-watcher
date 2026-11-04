@@ -29,7 +29,7 @@ const schema = z
   .superRefine((c, ctx) => {
     const need = (channel: string, keys: (keyof typeof c)[]) => {
       for (const k of keys)
-        if (!c[k]) ctx.addIssue({ code: "custom", path: [k], message: `${channel} kanalı seçili ama ${k} boş` });
+        if (!c[k]) ctx.addIssue({ code: "custom", path: [k], message: `${channel} channel is selected but ${k} is empty` });
     };
     if (c.NOTIFY_CHANNELS.includes("ntfy")) need("ntfy", ["NTFY_TOPIC"]);
     if (c.NOTIFY_CHANNELS.includes("telegram")) need("telegram", ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]);
@@ -37,7 +37,7 @@ const schema = z
 
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
-  console.error("Konfigürasyon hatası:");
+  console.error("Configuration error:");
   for (const i of parsed.error.issues) console.error(`  ${i.path.join(".")}: ${i.message}`);
   process.exit(1);
 }

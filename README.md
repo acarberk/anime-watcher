@@ -1,83 +1,96 @@
 # anime-watcher
 
-Takip ettiğin animelerin yeni bölümleri nyaa.si'de çıkınca bildirim gönderir. İngilizce altyazılı (`1_2`), en az 1080p, bölüm başına tek bildirim. GitHub Actions'ta 30 dakikada bir çalışır, state Supabase'de tutulur.
+Sends a notification when a new episode of an anime you follow shows up on nyaa.si: English-translated (`1_2`), 1080p or better, one notification per episode. A GitHub Actions cron scans every 30 minutes; state lives in Supabase.
 
-**Arayüz:** https://acarberk.github.io/anime-watcher/ — telefonda "Ana Ekrana Ekle" ile uygulama gibi kurulur (PWA). Her kullanıcı kendi listesini ve kendi ntfy topic'ini yönetir.
+**Web app:** https://acarberk.github.io/anime-watcher/ — an installable PWA ("Add to Home Screen" on phones). Every user manages their own watchlist and their own ntfy topic.
 
-## Kurulum
+## Repository layout
 
-Node 24 ve pnpm 10 gerekir (pnpm yoksa `corepack enable` veya her komutta `npx pnpm@10.18.0`).
+| Path | What |
+|---|---|
+| `src/` | Worker: Nyaa RSS fetch, title parsing, filtering, notifications (`pnpm start`) |
+| `src/cli/` | Watchlist CLI (`watch:add`, `watch:list`, `watch:remove`) |
+| `web/` | Web app: Vite + React + TypeScript + Tailwind + shadcn/ui, standalone package with its own lockfile |
+| `supabase/migrations/` | Database schema, applied in order |
+| `.github/workflows/check.yml` | The 30-minute scan |
+| `.github/workflows/pages.yml` | Builds `web/` and deploys it to GitHub Pages |
+
+## Setup
+
+Node 24 and pnpm 10 (no pnpm installed? `corepack enable`, or prefix commands with `npx pnpm@10.18.0`).
 
 ```bash
 pnpm install
-cp .env.example .env   # değerleri doldur
+cp .env.example .env   # fill in the values
 pnpm test
 ```
 
-`pnpm-lock.yaml` dosyasını commit'le, CI `--frozen-lockfile` ile kurar.
+Commit `pnpm-lock.yaml` (and `web/pnpm-lock.yaml`); CI installs with `--frozen-lockfile`.
 
 ## Supabase
 
-1. [supabase.com](https://supabase.com)'da yeni proje aç.
-2. SQL Editor → `supabase/migrations/` altındaki dosyaları sırayla yapıştır → Run. (Supabase CLI kullanıyorsan: `supabase db push`.)
-3. Project Settings → API: `Project URL` → `SUPABASE_URL`, `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`.
-4. Auth → URL Configuration: Site URL ve Redirect URL olarak arayüz adresi (`https://<kullanıcı>.github.io/anime-watcher/`, redirect'te sonuna `**`).
-5. `docs/index.html` içindeki Supabase URL ve publishable key'i kendi projeninkilerle değiştir.
+1. Create a project on [supabase.com](https://supabase.com).
+2. SQL Editor → paste each file in `supabase/migrations/` in order → Run. (With the Supabase CLI: `supabase db push`.)
+3. Project Settings → API Keys: project URL → `SUPABASE_URL`, secret / `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`.
+4. Auth → URL Configuration: set the Site URL to the web app address and add `https://<user>.github.io/anime-watcher/**` as a redirect URL.
+5. Put your project URL and publishable key in `web/src/lib/supabase.ts`.
 
-Tüm tablolarda RLS açık. Arayüz publishable key ile çalışır; policy'ler her kullanıcıyı kendi satırlarıyla sınırlar. Cron service_role key ile her şeyi okur — bu key'i hiçbir yerde public etme.
+RLS is on for every table. The web app runs with the publishable key and the policies limit every user to their own rows. The cron reads everything with the service_role key — never expose that key.
 
-**Yeni kayıtlar:** Auth → Sign In / Providers → "Allow new users to sign up" kapalı tutulur; başkalarını davet etmek bilinçli bir karar olmalı. Ücretsiz Supabase maili yalnızca organizasyon üyelerine ve saatte birkaç adet gönderir; başkalarına açmadan önce özel SMTP gerekir.
+**Sign-ups:** keep Auth → Sign In / Providers → "Allow new users to sign up" off unless you deliberately invite people. Supabase's built-in mailer only sends to organization members and a few emails per hour; set up custom SMTP before opening sign-ups.
 
 ## ntfy
 
-1. Telefona ntfy uygulamasını kur (iOS App Store / Google Play / F-Droid).
-2. "Subscribe to topic" → tahmin edilemeyecek uzun bir isim gir (ör. `anime-7f3k9q2m1x`). ntfy.sh'ta topic'i bilen herkes okuyabilir/yazabilir.
-3. Aynı ismi `NTFY_TOPIC` olarak ayarla. Self-hosted sunucu için `NTFY_URL`, erişim kontrolü varsa `NTFY_TOKEN`.
+1. Install the ntfy app (App Store / Google Play / F-Droid).
+2. Subscribe to a long, unguessable topic name (e.g. `anime-7f3k9q2m1x`). On ntfy.sh anyone who knows a topic can read and publish to it.
+3. Save the same topic in the web app (or as `NTFY_TOPIC` for CLI-added rows). For a self-hosted server set `NTFY_URL`, and `NTFY_TOKEN` if it requires auth.
 
-Telegram için (opsiyonel): @BotFather'dan bot aç → `TELEGRAM_BOT_TOKEN`; bota bir mesaj at, `https://api.telegram.org/bot<token>/getUpdates` çıktısındaki `chat.id` → `TELEGRAM_CHAT_ID`; `NOTIFY_CHANNELS=telegram` veya `ntfy,telegram`.
+Telegram (optional, CLI rows only): create a bot with @BotFather → `TELEGRAM_BOT_TOKEN`; message the bot, then take `chat.id` from `https://api.telegram.org/bot<token>/getUpdates` → `TELEGRAM_CHAT_ID`; set `NOTIFY_CHANNELS=telegram` or `ntfy,telegram`.
 
 ## GitHub
 
-Repo → Settings → Secrets and variables → Actions:
+Repository → Settings → Secrets and variables → Actions:
 
-| Tür | İsim | Zorunlu |
+| Type | Name | Required |
 |---|---|---|
-| Secret | `SUPABASE_URL` | evet |
-| Secret | `SUPABASE_SERVICE_ROLE_KEY` | evet |
-| Secret | `NTFY_TOPIC` | ntfy seçiliyse |
-| Secret | `NTFY_TOKEN` | hayır |
-| Secret | `TELEGRAM_BOT_TOKEN` | telegram seçiliyse |
-| Secret | `TELEGRAM_CHAT_ID` | telegram seçiliyse |
-| Variable | `NOTIFY_CHANNELS` | hayır (varsayılan `ntfy`) |
-| Variable | `NTFY_URL` | hayır (varsayılan `https://ntfy.sh`) |
+| Secret | `SUPABASE_URL` | yes |
+| Secret | `SUPABASE_SERVICE_ROLE_KEY` | yes |
+| Secret | `NTFY_TOPIC` | if ntfy is selected |
+| Secret | `NTFY_TOKEN` | no |
+| Secret | `TELEGRAM_BOT_TOKEN` | if telegram is selected |
+| Secret | `TELEGRAM_CHAT_ID` | if telegram is selected |
+| Variable | `NOTIFY_CHANNELS` | no (default `ntfy`) |
+| Variable | `NTFY_URL` | no (default `https://ntfy.sh`) |
 
-Elle çalıştırma: Actions → check → Run workflow (`dry_run` işaretlenirse bildirim gitmez, DB'ye yazılmaz).
+Settings → Pages → Source: **GitHub Actions** (the `pages` workflow deploys `web/`).
 
-**Not:** GitHub, 60 gün commit olmayan repolarda scheduled workflow'ları durdurur. Durursa Actions sekmesinden tekrar etkinleştir ya da ara sıra bir commit at.
+Manual scan: Actions → check → Run workflow (tick `dry_run` to send nothing and write nothing).
 
-## Watchlist yönetimi
+**Note:** GitHub pauses scheduled workflows in repositories with no commits for 60 days. If that happens, re-enable it from the Actions tab or push a commit.
 
-Normalde arayüzden: giriş yap → bildirim kanalı (ntfy topic) kaydet → anime ekle. "Test bildirimi" ile topic'i doğrula.
+## Managing the watchlist
 
-CLI (service_role ile, `.env` gerekir). CLI ile eklenen kayıtların kullanıcısı yoktur: env'deki kanallara (`NOTIFY_CHANNELS`, `NTFY_TOPIC`) bildirilir ve arayüzde görünmez.
+Normally through the web app: sign in → save your notification channel (ntfy topic) → add anime. Use "Send test notification" to check the topic.
+
+The CLI uses the service_role key (needs `.env`). Rows added through the CLI have no user: they are notified through the env channels (`NOTIFY_CHANNELS`, `NTFY_TOPIC`) and don't show up in the web app.
 
 ```bash
 pnpm watch:add "Frieren" --query "Sousou no Frieren"
 pnpm watch:add "Dandadan" --query "Dandadan" --season 2 --groups SubsPlease,Erai-raws
 pnpm watch:add "Frieren" --query "Sousou no Frieren" --regex "^\[SubsPlease\]" --from 5
 pnpm watch:list
-pnpm watch:remove <id>          # veya tam başlık: pnpm watch:remove "Frieren"
+pnpm watch:remove <id>          # or the exact title: pnpm watch:remove "Frieren"
 ```
 
-- Yeni eklenen kayıt (`seeded=false`) ilk taramada Nyaa'da şu an olan bölümleri sezon + bölüm bazında bildirimsiz görüldü sayar; böylece eski bölümler bildirilmez, yeni sezon yine bildirilir. Arayüzden de CLI'dan da aynı.
-- `--from 5` / arayüzde "Şu bölümden itibaren: 5" → ilk tarama atlanır, 5. bölüm ve sonrası bildirilir (`min_episode = 4`).
-- Durdurulan bir anime devam ettirilince tekrar ilk tarama yapılır; arada çıkan bölümler toplu bildirim olarak gelmez.
-- Aynı Nyaa araması birden fazla kayıtta/kullanıcıda varsa her run'da tek istek atılır.
-- `--query` verilmezse başlık arama terimi olarak kullanılır. Arama sonucunda alakasız seriler (mini anime, spin-off) çıkıyorsa `--regex` ile daralt.
-- Gruplar aynı seriyi farklı numaralandırabilir (ör. SubsPlease `- 30`, Erai-raws `S3 - 06`). Çift bildirim alırsan `--groups` ile tek grup seç.
-- Kullanıcının ntfy topic'i yoksa bölümleri bildirimsiz görüldü sayılır (topic sonradan girilince birikmiş bildirim yağmaz).
+- A new row (`seeded=false`) marks everything already on Nyaa as seen on its first scan, per season + episode, so old episodes aren't notified while a new season still is. Same for the web app and the CLI.
+- `--from 5` (web app: "Start from episode 5") skips the first scan and notifies episode 5 and later (`min_episode = 4`).
+- Resuming a paused anime re-runs the first scan, so episodes released while it was paused don't arrive as a burst.
+- When several rows or users share a Nyaa search, each run fetches it once.
+- Without `--query` the title is used as the search term. If the results include unrelated shows (mini anime, spin-offs), narrow them with `--regex`.
+- Groups may number the same show differently (e.g. SubsPlease `- 30` vs Erai-raws `S3 - 06`). If you get duplicates, pick one group with `--groups`.
+- If a user has no ntfy topic yet, their episodes are marked seen silently (so setting a topic later doesn't flood them).
 
-## Yerel çalıştırma
+## Running locally
 
 ```bash
 DRY_RUN=true pnpm start
@@ -89,4 +102,12 @@ PowerShell:
 $env:DRY_RUN='true'; pnpm start
 ```
 
-Dry-run gerçek Nyaa'ya istek atar, ne bildireceğini loglar; bildirim göndermez, DB'ye yazmaz. Herhangi bir anime hata verirse diğerleri taranmaya devam eder, run sonunda exit code 1 döner.
+A dry run queries the real Nyaa and logs what it would send; it sends nothing and writes nothing. If one anime fails, the others are still scanned and the run exits with code 1.
+
+Web app:
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```

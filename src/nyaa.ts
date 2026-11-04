@@ -25,7 +25,7 @@ const parser = new XMLParser({ isArray: (name) => name === "item", parseTagValue
 
 export function parseRss(xml: string): NyaaItem[] {
   // a block/error page would parse to zero items and look like "nothing new"
-  if (!xml.includes("<rss")) throw new Error(`RSS bekleniyordu, gelen: ${xml.slice(0, 80)}`);
+  if (!xml.includes("<rss")) throw new Error(`expected RSS, got: ${xml.slice(0, 80)}`);
   const items: Record<string, string>[] = parser.parse(xml).rss?.channel?.item ?? [];
   return items
     .filter((i) => i["nyaa:categoryId"] === "1_2")

@@ -40,8 +40,8 @@ for (const w of watchlist) {
     // - first scan of a new row (spam guard, per season+episode so a new season still notifies)
     // - user without a topic yet, so setting one later doesn't flood
     if (!w.seeded || (w.user_id && !topic)) {
-      const why = w.seeded ? "kullanıcının ntfy topic'i yok" : "ilk tarama";
-      console.log(`[sessiz] ${w.title}: ${best.length} bölüm görüldü sayıldı (${why})`);
+      const why = w.seeded ? "user has no ntfy topic" : "first scan";
+      console.log(`[silent] ${w.title}: ${best.length} episode(s) marked as seen (${why})`);
       if (!config.DRY_RUN) {
         if (best.length) await markSeen(best.map((c) => seenRow(w, c)));
         if (!w.seeded) await setSeeded(w.id);
@@ -60,21 +60,21 @@ for (const w of watchlist) {
       }
       await notify(n, topic);
       fresh++;
-      console.log(`[gönderildi] ${n.title}`);
+      console.log(`[sent] ${n.title}`);
       try {
         await markSeen(seenRow(w, c));
       } catch (e) {
-        console.error(`[${w.title}] bildirim gitti ama kayıt yazılamadı, sonraki run tekrar gönderebilir`);
+        console.error(`[${w.title}] notification sent but the seen row failed to save; the next run may send it again`);
         throw e;
       }
     }
   } catch (e) {
     failed++;
-    console.error(`[${w.title}] hata:`, e instanceof Error ? e.message : e);
+    console.error(`[${w.title}] error:`, e instanceof Error ? e.message : e);
   }
 }
 
 console.log(
-  `tarandı: ${watchlist.length} kayıt / ${feeds.size} sorgu, yeni: ${fresh}, hata: ${failed}${config.DRY_RUN ? " (dry-run)" : ""}`,
+  `scanned: ${watchlist.length} rows / ${feeds.size} queries, new: ${fresh}, errors: ${failed}${config.DRY_RUN ? " (dry-run)" : ""}`,
 );
 if (failed) process.exitCode = 1;
