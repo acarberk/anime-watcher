@@ -12,7 +12,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "prompt", // the app shows an "update available" toast instead of reloading on its own
+      // new builds activate and the page reloads into them on their own; a missable "Reload" prompt kept users on stale builds
+      registerType: "autoUpdate",
       // our own worker (src/sw.ts) so the Web Push handler is versioned with the app
       strategies: "injectManifest",
       srcDir: "src",

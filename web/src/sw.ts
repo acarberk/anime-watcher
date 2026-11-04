@@ -1,10 +1,16 @@
 /// <reference lib="WebWorker" />
 // Service worker built with the app (vite-plugin-pwa injectManifest), so the push handler ships and updates with every
 // release. Precaches the app shell only; Supabase/AniList responses are never cached.
+import { clientsClaim } from "workbox-core";
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute, type PrecacheEntry } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 
 declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: (string | PrecacheEntry)[] };
+
+// New builds take over immediately (registerType: autoUpdate). A "reload to update" prompt proved easy to miss,
+// which left people on an old build that couldn't even offer alerts.
+self.skipWaiting();
+clientsClaim();
 
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();

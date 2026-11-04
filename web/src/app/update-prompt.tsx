@@ -1,22 +1,14 @@
-import { useEffect } from "react";
-import { toast } from "sonner";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
-/** Installed apps keep running the cached build; offer a reload when a new one is deployed */
+const HOUR = 60 * 60 * 1000;
+
+/** Registers the service worker; updates apply on their own (autoUpdate). Long-lived tabs and the installed app also
+ *  check for a new build every hour instead of only on the next launch. */
 export function UpdatePrompt() {
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW();
-
-  useEffect(() => {
-    if (!needRefresh) return;
-    toast("A new version is available", {
-      id: "pwa-update",
-      duration: Infinity,
-      action: { label: "Reload", onClick: () => updateServiceWorker(true) },
-    });
-  }, [needRefresh, updateServiceWorker]);
-
+  useRegisterSW({
+    onRegisteredSW(_url, registration) {
+      if (registration) setInterval(() => registration.update().catch(() => {}), HOUR);
+    },
+  });
   return null;
 }
