@@ -23,29 +23,33 @@ export function useDebounced<T>(value: T, ms = 300): T {
   return v;
 }
 
-export type Keyboard = { bottom: number; height: number };
+export type VisibleArea = { bottom: number; height: number; keyboard: boolean };
 
-/** On-screen keyboard. iOS and Android shrink only the visual viewport, so a fixed bottom sheet ends up behind
- *  the keyboard. While it is up: `bottom` = px from the layout bottom to the visible bottom, `height` = visible
- *  height. null while it is down. */
-export function useKeyboard(active: boolean): Keyboard | null {
-  const [kb, setKb] = useState<Keyboard | null>(null);
+/** The part of the screen a fixed bottom sheet can use. With the on-screen keyboard up, browsers shrink the visual
+ *  viewport and may or may not shrink the layout viewport too, so both are measured: `bottom` = px from the layout
+ *  bottom to the visible bottom, `height` = visible height. */
+export function useVisibleArea(active: boolean): VisibleArea | null {
+  const [area, setArea] = useState<VisibleArea | null>(null);
   useEffect(() => {
     const vv = window.visualViewport;
     if (!active || !vv) return;
-    // ponytail: >80px covered = keyboard (toolbar jitter is smaller); pinch-zoom is excluded by scale
-    const update = () =>
-      setKb(innerHeight - vv.height > 80 && vv.scale < 1.05 ? { bottom: innerHeight - vv.height - vv.offsetTop, height: vv.height } : null);
+    let full = vv.height;
+    const update = () => {
+      if (vv.scale > 1.05) return; // pinch-zoom, not the keyboard
+      full = Math.max(full, vv.height);
+      // ponytail: >120px shorter than at open = keyboard (toolbars collapsing move less); only drives padding
+      setArea({ bottom: Math.max(0, innerHeight - vv.height - vv.offsetTop), height: vv.height, keyboard: full - vv.height > 120 });
+    };
     update();
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
     return () => {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
-      setKb(null);
+      setArea(null);
     };
   }, [active]);
-  return kb;
+  return area;
 }
 
 /** Re-renders every `ms`, for countdowns */

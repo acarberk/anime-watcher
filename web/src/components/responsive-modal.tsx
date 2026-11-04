@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { useIsDesktop, useKeyboard } from "@/lib/hooks";
+import { useIsDesktop, useVisibleArea } from "@/lib/hooks";
 
 /** Bottom sheet on phones (thumb reach, swipe to close), centered dialog from tablet up */
 export function ResponsiveModal({
@@ -18,7 +18,7 @@ export function ResponsiveModal({
   children: ReactNode;
 }) {
   const desktop = useIsDesktop();
-  const keyboard = useKeyboard(open && !desktop);
+  const area = useVisibleArea(open && !desktop);
 
   if (desktop) {
     return (
@@ -36,12 +36,12 @@ export function ResponsiveModal({
 
   return (
     // repositionInputs off: vaul's own keyboard handling pinned stale heights (empty space under the buttons);
-    // instead the sheet sits on the keyboard and shrinks to the visible area
+    // instead the sheet always ends at the visible bottom and never grows taller than the visible area,
+    // so the search field at its top stays on screen above the keyboard
     <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <DrawerContent
-        className="max-h-[92dvh]"
-        data-keyboard={keyboard ? "" : undefined}
-        style={keyboard ? { bottom: keyboard.bottom, maxHeight: keyboard.height - 16 } : undefined}
+        data-keyboard={area?.keyboard ? "" : undefined}
+        style={area ? { bottom: area.bottom, maxHeight: `min(80vh, ${area.height - 16}px)` } : undefined}
       >
         <DrawerHeader className="border-b pb-3 text-left">
           <DrawerTitle className="text-lg">{title}</DrawerTitle>
