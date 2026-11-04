@@ -83,7 +83,7 @@ export function WatchlistView({ entries, loading, error, airing, onRetry, onAdd,
           </AlertAction>
         </Alert>
       ) : loading ? (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 4xl:grid-cols-5" aria-busy="true" aria-label="Loading watchlist">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 4xl:grid-cols-5" aria-busy="true" aria-label="Loading watchlist">
           {Array.from({ length: 6 }, (_, i) => (
             <li key={i}>
               <AnimeCardSkeleton />
@@ -110,7 +110,7 @@ export function WatchlistView({ entries, loading, error, airing, onRetry, onAdd,
               ))}
             </ToggleGroup>
           )}
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 4xl:grid-cols-5">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 4xl:grid-cols-5">
             {visible.map((e) => (
               <li key={e.id}>
                 <AnimeCard

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { FullScreenSpinner } from "@/components/full-screen-spinner";
-import { useProfile } from "@/features/notifications/api";
+import { hasChannel, useChannels } from "@/features/notifications/api";
 import { useAuth } from "@/lib/auth";
 
 export function RequireAuth() {
@@ -19,11 +19,11 @@ export function GuestOnly() {
   return <Outlet />;
 }
 
-/** Without a notification channel nothing can reach the user, so set one up first */
+/** Without a way to reach the user (a connected device or an ntfy topic) alerts go nowhere, so set one up first */
 export function RequireChannel() {
-  const profile = useProfile();
-  if (profile.isPending) return <FullScreenSpinner />;
-  // on a load error let the app render; the settings screen can still fix the topic
-  if (profile.isSuccess && !profile.data?.ntfy_topic) return <Navigate to="/setup" replace />;
+  const channels = useChannels();
+  if (channels.isPending) return <FullScreenSpinner />;
+  // on a load error let the app render; the settings screen can still fix it
+  if (channels.isSuccess && !hasChannel(channels.data)) return <Navigate to="/setup" replace />;
   return <Outlet />;
 }

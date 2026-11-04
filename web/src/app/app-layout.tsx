@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { signOut } from "@/features/notifications/api";
 import { cn } from "@/lib/utils";
 
 const NAV: { to: string; label: string; icon: ComponentType<{ className?: string }> }[] = [
@@ -41,7 +41,7 @@ function AccountMenu({ email }: { email: string }) {
             <SettingsIcon /> Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onSelect={() => supabase.auth.signOut()}>
+        <DropdownMenuItem variant="destructive" onSelect={() => signOut()}>
           <LogOutIcon /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

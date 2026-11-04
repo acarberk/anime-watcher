@@ -84,7 +84,7 @@ function ConnectStep({ code, platform }: { code: string; platform: Platform }) {
   );
 }
 
-export function SetupFlow({
+export function NtfySetup({
   initialTopic,
   initialStep = 1,
   platform: forcedPlatform,

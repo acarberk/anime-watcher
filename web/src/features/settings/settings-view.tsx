@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  BellRingIcon,
   CircleCheckBigIcon,
   DownloadIcon,
   KeyRoundIcon,
@@ -8,15 +7,13 @@ import {
   MonitorIcon,
   MoonIcon,
   PaletteIcon,
-  RefreshCwIcon,
-  SendIcon,
   ShareIcon,
   SmartphoneIcon,
   SunIcon,
   UserIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
@@ -25,13 +22,11 @@ import { PageHeader } from "@/components/page-header";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { resetSchema } from "@/features/auth/schemas";
-import { isValidTopic, randomTopic } from "@/features/notifications/api";
-import { TopicDisplay } from "@/features/notifications/topic-display";
 import type { InstallState } from "@/lib/pwa-install";
+import { NotificationsSection } from "./notifications-section";
 
 function Section({ icon, title, description, children }: { icon: ReactNode; title: string; description?: string; children: ReactNode }) {
   return (
@@ -45,77 +40,6 @@ function Section({ icon, title, description, children }: { icon: ReactNode; titl
       </div>
       {children}
     </section>
-  );
-}
-
-function NotificationSection({
-  topic,
-  onSave,
-  onTest,
-}: {
-  topic: string | null;
-  onSave: (topic: string) => Promise<void>;
-  onTest: (topic: string) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(topic ?? "");
-  const [busy, setBusy] = useState<"save" | "test" | null>(null);
-
-  async function run(kind: "save" | "test", fn: () => Promise<void>, ok: string) {
-    setBusy(kind);
-    try {
-      await fn();
-      toast.success(ok);
-      if (kind === "save") setEditing(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Something went wrong.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <Section icon={<BellRingIcon />} title="Notifications" description="Alerts are sent to the app on your phone.">
-      {editing ? (
-        <div className="space-y-3">
-          <Input
-            aria-label="Connection code"
-            className="font-mono"
-            spellCheck={false}
-            autoComplete="off"
-            value={draft}
-            aria-invalid={!!draft && !isValidTopic(draft)}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-          <p className="text-[0.8125rem] text-muted-foreground">
-            Add the new code in the app before saving, or alerts will stop arriving.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="xl" disabled={!isValidTopic(draft) || busy !== null} onClick={() => run("save", () => onSave(draft.trim()), "Saved.")}>
-              {busy === "save" && <Spinner />} Save code
-            </Button>
-            <Button variant="outline" size="xl" onClick={() => setDraft(randomTopic())}>
-              <RefreshCwIcon /> Generate
-            </Button>
-            <Button variant="ghost" size="xl" onClick={() => { setEditing(false); setDraft(topic ?? ""); }}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {topic ? <TopicDisplay topic={topic} /> : <p className="text-sm text-muted-foreground">Not connected yet.</p>}
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="xl" disabled={!topic || busy !== null} onClick={() => run("test", () => onTest(topic!), "Test alert sent. Check your phone.")}>
-              {busy === "test" ? <Spinner /> : <SendIcon />} Send test
-            </Button>
-            <Button variant="ghost" size="xl" onClick={() => setEditing(true)}>
-              Change code
-            </Button>
-          </div>
-        </div>
-      )}
-    </Section>
   );
 }
 
@@ -224,26 +148,24 @@ function AccountSection({
 
 export interface SettingsViewProps {
   email: string;
-  topic: string | null;
+  notifications: ComponentProps<typeof NotificationsSection>;
   install: { state: InstallState; install: () => void };
-  onSaveTopic: (topic: string) => Promise<void>;
-  onTest: (topic: string) => Promise<void>;
   onChangePassword: (password: string) => Promise<void>;
   onSignOut: () => void;
 }
 
-export function SettingsView({ email, topic, install, onSaveTopic, onTest, onChangePassword, onSignOut }: SettingsViewProps) {
+export function SettingsView({ email, notifications, install, onChangePassword, onSignOut }: SettingsViewProps) {
   return (
     // capped width: settings are forms, long lines read badly on wide monitors
     <div className="max-w-5xl">
       <PageHeader title="Settings" />
       {/* phones/tablets: one column; desktop: two balanced columns */}
-      <div className="grid items-start gap-4 lg:grid-cols-2 3xl:gap-5">
-        <div className="grid gap-4 3xl:gap-5">
-          <NotificationSection topic={topic} onSave={onSaveTopic} onTest={onTest} />
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 3xl:gap-5">
+        <div className="grid min-w-0 grid-cols-1 gap-4 3xl:gap-5">
+          <NotificationsSection {...notifications} />
           <InstallSection state={install.state} onInstall={install.install} />
         </div>
-        <div className="grid gap-4 3xl:gap-5">
+        <div className="grid min-w-0 grid-cols-1 gap-4 3xl:gap-5">
           <AppearanceSection />
           <AccountSection email={email} onChangePassword={onChangePassword} onSignOut={onSignOut} />
         </div>

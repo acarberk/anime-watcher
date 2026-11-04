@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isIOS as ios, isStandalone as standalone } from "./platform";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -6,10 +7,6 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export type InstallState = "installed" | "prompt" | "ios" | "unavailable";
-
-const standalone = () =>
-  matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
-const ios = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 /** Chrome/Edge/Android offer a native prompt; iOS needs Share → Add to Home Screen */
 export function usePwaInstall() {

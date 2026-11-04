@@ -20,7 +20,16 @@ export interface WatchItem {
   created_at: string;
 }
 
-export type ScanItem = WatchItem & { profiles: { ntfy_topic: string | null } | null };
+export interface PushSubscriptionRow {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+export type ScanItem = WatchItem & {
+  profiles: { ntfy_topic: string | null; push_subscriptions: PushSubscriptionRow[] } | null;
+};
 
 export interface SeenEpisode {
   watchlist_id: string;
@@ -43,7 +52,26 @@ export function must<T>({ data, error }: { data: T | null; error: { message: str
 export const episodeKey = (season: number, episode: number) => `${season}:${Number(episode)}`;
 
 export async function activeWatchlist(): Promise<ScanItem[]> {
-  return must(await db.from("watchlist").select("*, profiles(ntfy_topic)").eq("active", true).order("created_at"));
+  return must(
+    await db
+      .from("watchlist")
+      .select("*, profiles(ntfy_topic, push_subscriptions(id, endpoint, p256dh, auth))")
+      .eq("active", true)
+      .order("created_at"),
+  );
+}
+
+/** Devices that never received anything yet; they get a one-time welcome push */
+export async function unconfirmedSubscriptions(): Promise<PushSubscriptionRow[]> {
+  return must(await db.from("push_subscriptions").select("id, endpoint, p256dh, auth").is("last_success_at", null));
+}
+
+export async function recordPushResults(succeeded: Iterable<string>, failed: Map<string, string>, gone: Iterable<string>) {
+  const ok = [...succeeded];
+  const dead = [...gone];
+  if (ok.length) must(await db.from("push_subscriptions").update({ last_success_at: new Date().toISOString(), last_error: null }).in("id", ok));
+  for (const [id, error] of failed) must(await db.from("push_subscriptions").update({ last_error: error.slice(0, 300) }).eq("id", id));
+  if (dead.length) must(await db.from("push_subscriptions").delete().in("id", dead));
 }
 
 export async function seenKeys(watchlistId: string): Promise<Set<string>> {

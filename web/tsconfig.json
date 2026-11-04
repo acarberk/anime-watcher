@@ -15,5 +15,7 @@
     "paths": { "@/*": ["./src/*"] },
     "types": ["vite/client", "vite-plugin-pwa/react", "node"]
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "vite.config.ts", "vitest.config.ts"],
+  // the service worker has WebWorker globals instead of DOM; checked by tsconfig.sw.json
+  "exclude": ["src/sw.ts"]
 }

@@ -3,7 +3,9 @@
 import { useSearchParams } from "react-router";
 import { AppShell } from "@/app/app-layout";
 import { ResponsiveModal } from "@/components/responsive-modal";
-import { SetupFlow, type Platform } from "@/features/notifications/setup-flow";
+import type { Device } from "@/features/notifications/api";
+import { NtfySetup, type Platform } from "@/features/notifications/ntfy-setup";
+import { PushSetup, type PushStep } from "@/features/notifications/push-setup";
 import { SetupLayout } from "@/features/notifications/setup-page";
 import { SettingsView } from "@/features/settings/settings-view";
 import { AnimeForm } from "@/features/watchlist/anime-form";
@@ -103,13 +105,27 @@ export function Gallery() {
           </ResponsiveModal>
         </>,
       );
-    case "setup-1":
-    case "setup-2":
-    case "setup-3":
+    case "setup":
+      // ?step=ready|needs-install|denied|unsupported|push-service|update-pending|enabled
       return (
         <SetupLayout>
-          <SetupFlow
-            initialStep={Number(view.at(-1)) as 1 | 2 | 3}
+          <PushSetup
+            step={(params.get("step") as PushStep | null) ?? "ready"}
+            busy={false}
+            onEnable={noop}
+            onRetry={noop}
+            onTest={noop}
+            onContinue={noop}
+            onReload={noop}
+            onUseNtfy={noop}
+          />
+        </SetupLayout>
+      );
+    case "setup-ntfy":
+      return (
+        <SetupLayout>
+          <NtfySetup
+            initialStep={Number(params.get("ntfyStep") ?? 2) as 1 | 2 | 3}
             platform={(params.get("platform") as Platform | null) ?? undefined}
             onTest={wait}
             onFinish={noop}
@@ -117,18 +133,34 @@ export function Gallery() {
           />
         </SetupLayout>
       );
-    case "settings":
+    case "settings": {
+      const hours = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+      const devices: Device[] =
+        params.get("devices") === "0"
+          ? []
+          : [
+              { id: "d1", endpoint: "e1", device_label: "iPhone", created_at: hours(48), last_success_at: hours(2), last_error: null },
+              { id: "d2", endpoint: "e2", device_label: "Windows · Brave", created_at: hours(0.1), last_success_at: null, last_error: null },
+            ];
       return shell(
         <SettingsView
           email="berk@example.com"
-          topic="anime-k3x9q2m7wfb4hz8p"
           install={{ state: "ios", install: noop }}
-          onSaveTopic={wait}
-          onTest={wait}
+          notifications={{
+            channels: { topic: null, devices, thisEndpoint: params.get("devices") === "0" ? null : "e2" },
+            thisDeviceStep: (params.get("step") as PushStep | null) ?? "ready",
+            connecting: false,
+            onConnect: noop,
+            onRemoveDevice: wait,
+            onTestThisDevice: wait,
+            onSaveTopic: wait,
+            onTestTopic: wait,
+          }}
           onChangePassword={wait}
           onSignOut={noop}
         />,
       );
+    }
     default:
       return shell(list({}));
   }

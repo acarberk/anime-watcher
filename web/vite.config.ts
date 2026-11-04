@@ -13,7 +13,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "prompt", // the app shows an "update available" toast instead of reloading on its own
-      includeAssets: ["apple-touch-icon.png"],
+      // our own worker (src/sw.ts) so the Web Push handler is versioned with the app
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      // app shell only; Supabase/AniList responses are never cached
+      injectManifest: { globPatterns: ["**/*.{js,css,html,png,svg,woff2}"] },
+      includeAssets: ["apple-touch-icon.png", "badge-96.png"],
       manifest: {
         name: "Anime Watcher",
         short_name: "Anime Watcher",
@@ -29,11 +35,6 @@ export default defineConfig({
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
-      },
-      workbox: {
-        // app shell only; Supabase/AniList responses are never cached
-        globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
-        navigateFallback: "index.html",
       },
     }),
   ],

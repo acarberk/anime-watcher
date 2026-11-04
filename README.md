@@ -39,7 +39,25 @@ RLS is on for every table. The web app runs with the publishable key and the pol
 
 **Sign-ups:** keep Auth → Sign In / Providers → "Allow new users to sign up" off unless you deliberately invite people. Supabase's built-in mailer only sends to organization members and a few emails per hour; set up custom SMTP before opening sign-ups.
 
-## ntfy
+## Notifications
+
+Users pick how alerts reach them in the app's setup screen:
+
+- **Web Push (default):** "Allow notifications" in the browser; no extra app. Works in Chrome, Edge, Firefox and Safari on desktop and Android. On iPhone/iPad (iOS 16.4+) only from the Home Screen app, so setup walks the user through *Share → Add to Home Screen* first. Brave needs *Use Google services for push messaging* turned on; setup detects the failure and shows the steps. Every connected device is listed in Settings with its last delivery.
+- **ntfy (optional):** a separate notifications app, see below.
+
+One-time Web Push setup (generates the VAPID key pair; the private key goes straight into a repo secret and is never printed):
+
+```bash
+node scripts/setup-vapid.mjs
+gh workflow run pages.yml
+```
+
+The script refuses to run a second time: subscriptions are bound to the public key, so regenerating it would disconnect every device. Until it has run, the app offers only the ntfy route and the cron logs `VAPID keys not set`.
+
+A device that has never received anything gets a one-time welcome alert on the next scan, so a broken connection shows up within 30 minutes instead of at the next episode. Subscriptions the browser dropped (404/410) are deleted automatically; signing out disconnects the current browser.
+
+### ntfy
 
 1. Install the ntfy app (App Store / Google Play / F-Droid).
 2. Subscribe to a long, unguessable topic name (e.g. `anime-7f3k9q2m1x`). On ntfy.sh anyone who knows a topic can read and publish to it.
@@ -61,6 +79,8 @@ Repository → Settings → Secrets and variables → Actions:
 | Secret | `TELEGRAM_CHAT_ID` | if telegram is selected |
 | Variable | `NOTIFY_CHANNELS` | no (default `ntfy`) |
 | Variable | `NTFY_URL` | no (default `https://ntfy.sh`) |
+| Secret | `VAPID_PRIVATE_KEY` | for Web Push (set by `scripts/setup-vapid.mjs`) |
+| Variable | `VAPID_PUBLIC_KEY` | for Web Push (set by `scripts/setup-vapid.mjs`) |
 
 Settings → Pages → Source: **GitHub Actions** (the `pages` workflow deploys `web/`).
 

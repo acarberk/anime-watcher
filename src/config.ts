@@ -22,6 +22,11 @@ const schema = z
     NTFY_TOKEN: optional,
     TELEGRAM_BOT_TOKEN: optional,
     TELEGRAM_CHAT_ID: optional,
+    // Web Push (VAPID). Without both keys the push channel is skipped, it doesn't crash the run.
+    VAPID_PUBLIC_KEY: optional,
+    VAPID_PRIVATE_KEY: optional,
+    // must be an https: or mailto: URL; Apple's push service rejects anything else
+    VAPID_SUBJECT: z.preprocess(blank, z.url().default("https://github.com/acarberk/anime-watcher")),
     REQUEST_DELAY_MS: z.preprocess(blank, z.coerce.number().int().nonnegative().default(1500)),
     // not z.coerce.boolean(): "false" would coerce to true
     DRY_RUN: z.preprocess(blank, z.string().default("false")).transform((s) => s.toLowerCase() === "true"),
