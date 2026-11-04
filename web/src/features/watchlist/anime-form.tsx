@@ -235,7 +235,7 @@ export function AnimeForm({
         </FieldGroup>
       </div>
 
-      <div className="pb-safe sticky bottom-0 flex gap-2 border-t bg-popover px-4 py-3 sm:justify-end sm:px-6">
+      <div className="pb-sheet sticky bottom-0 flex gap-2 border-t bg-popover px-4 pt-3 sm:justify-end sm:px-6">
         <Button type="button" variant="ghost" size="xl" className="flex-1 sm:flex-none" onClick={onCancel}>
           <XIcon className="sm:hidden" /> Cancel
         </Button>

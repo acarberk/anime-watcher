@@ -86,7 +86,7 @@ export function AnimeSearch({ onPick, onManual }: { onPick: (m: AniMedia) => voi
         )}
       </div>
 
-      <div className="border-t px-4 py-3 sm:px-6">
+      <div className="pb-sheet border-t px-4 pt-3 sm:px-6">
         <Button variant="ghost" className="h-11 w-full text-muted-foreground md:h-9" onClick={onManual}>
           <PencilLineIcon /> Not on AniList? Add it manually
         </Button>

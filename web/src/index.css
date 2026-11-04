@@ -154,4 +154,12 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+  /* bottom bar of a sheet: the home-indicator inset replaces the normal padding instead of stacking on it,
+     and with the keyboard up (ResponsiveModal sets data-keyboard) the inset is hidden behind the keyboard */
+  .pb-sheet {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  [data-keyboard] .pb-sheet {
+    padding-bottom: 0.75rem;
+  }
 }
