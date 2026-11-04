@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { config } from "./config";
-import { activeWatchlist, episodeKey, markSeen, seenKeys, setSeeded, type WatchItem } from "./db";
+import { activeWatchlist, episodeKey, markSeen, recordScan, seenKeys, setSeeded, type WatchItem } from "./db";
 import { filterItems, pickBest, type Candidate } from "./filter";
 import { fetchNyaa, type NyaaItem } from "./nyaa";
 import { formatNotification, notify } from "./notify/index";
@@ -35,6 +35,7 @@ for (const w of watchlist) {
   try {
     const best = pickBest(filterItems(await feed(w.query), w));
     const topic = w.profiles?.ntfy_topic ?? null;
+    if (!config.DRY_RUN) await recordScan(w.id, best.length);
 
     // Mark what's on Nyaa as seen without sending anything:
     // - first scan of a new row (spam guard, per season+episode so a new season still notifies)

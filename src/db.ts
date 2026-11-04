@@ -12,6 +12,11 @@ export interface WatchItem {
   active: boolean;
   seeded: boolean; // false → next run marks what's already on Nyaa as seen, sends nothing
   user_id: string | null; // null = added via CLI, notified through the env channels
+  anilist_id: number | null;
+  cover_url: string | null;
+  cover_color: string | null;
+  last_scanned_at: string | null;
+  last_match_count: number | null;
   created_at: string;
 }
 
@@ -50,6 +55,16 @@ export async function seenKeys(watchlistId: string): Promise<Set<string>> {
 
 export async function setSeeded(id: string): Promise<void> {
   must(await db.from("watchlist").update({ seeded: true }).eq("id", id));
+}
+
+/** Lets the web app flag rows whose search keeps matching nothing */
+export async function recordScan(id: string, matchCount: number): Promise<void> {
+  must(
+    await db
+      .from("watchlist")
+      .update({ last_scanned_at: new Date().toISOString(), last_match_count: matchCount })
+      .eq("id", id),
+  );
 }
 
 export async function markSeen(rows: SeenEpisode | SeenEpisode[]): Promise<void> {

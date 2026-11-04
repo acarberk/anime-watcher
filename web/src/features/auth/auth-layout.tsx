@@ -42,7 +42,7 @@ function BrandPanel() {
         <NotificationPreview />
         <ul className="space-y-3.5">
           {FEATURES.map(({ icon: Icon, text }) => (
-            <li key={text} className="flex items-center gap-3 text-[15px] text-white/90">
+            <li key={text} className="flex items-center gap-3 text-[0.9375rem] text-white/90">
               <span className="grid size-8 place-items-center rounded-lg bg-white/12">
                 <Icon className="size-4" />
               </span>
@@ -102,8 +102,8 @@ export function AuthLayout({
                 {icon}
               </div>
             )}
-            <h1 className="text-[26px] leading-tight font-semibold tracking-tight">{title}</h1>
-            {description && <p className="text-[15px] text-pretty text-muted-foreground">{description}</p>}
+            <h1 className="text-[1.625rem] leading-tight font-semibold tracking-tight">{title}</h1>
+            {description && <p className="text-[0.9375rem] text-pretty text-muted-foreground">{description}</p>}
           </header>
           {children}
           {footer && <div className="mt-8 text-center text-sm text-muted-foreground">{footer}</div>}

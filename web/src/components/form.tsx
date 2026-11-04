@@ -47,7 +47,7 @@ export function FormAlert({ children }: { children: ReactNode }) {
 /** Live checklist under a new-password field */
 export function PasswordChecklist({ value }: { value: string }) {
   return (
-    <ul className="grid gap-1 text-[13px]" aria-label="Password rules">
+    <ul className="grid gap-1 text-[0.8125rem]" aria-label="Password rules">
       {PASSWORD_RULES.map((r) => {
         const ok = r.test(value);
         const Icon = ok ? CircleCheckIcon : CircleIcon;

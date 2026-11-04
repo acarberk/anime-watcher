@@ -5,6 +5,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Mobile-first. Tailwind's sm/md/lg/xl/2xl cover phones → laptops; these two add 1080p and 1440p+ desktops */
+@theme {
+  --breakpoint-3xl: 120rem; /* 1920px */
+  --breakpoint-4xl: 160rem; /* 2560px */
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
@@ -105,6 +111,23 @@
   html {
     @apply font-sans antialiased;
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Large monitors: everything is rem-based, so growing the root size scales the whole UI.
+     Covers 1080p/1440p at 100% and 4K at 100–150% OS scaling (CSS widths up to 3840px). */
+  @media (min-width: 120rem) {
+    html {
+      font-size: 17px;
+    }
+  }
+  @media (min-width: 160rem) {
+    html {
+      font-size: 20px;
+    }
+  }
+  @media (min-width: 200rem) {
+    html {
+      font-size: 24px;
+    }
   }
   body {
     @apply bg-background text-foreground min-h-dvh;

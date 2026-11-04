@@ -111,3 +111,7 @@ cd web
 pnpm install
 pnpm dev
 ```
+
+`http://localhost:5173/anime-watcher/dev/gallery?view=…` renders every signed-in screen with fixture data (`watchlist`, `empty`, `loading`, `error`, `search`, `add`, `edit`, `setup-1..3`, `settings`) for design review without an account. It only exists in dev builds.
+
+The layout is mobile-first: a bottom tab bar and floating add button on phones, top navigation from tablets up, and the watchlist grid grows from 1 to 5 columns. From 1920px wide the root font size steps up (17 → 20 → 24px), so 1440p and 4K monitors get a proportionally larger UI rather than a tiny one.
