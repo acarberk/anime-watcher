@@ -1,18 +1,54 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { config } from "./config";
-import { activeWatchlist, episodeKey, markSeen, seenKeys } from "./db";
-import { filterItems, pickBest } from "./filter";
-import { fetchNyaa } from "./nyaa";
+import { activeWatchlist, episodeKey, markSeen, seenKeys, setSeeded, type WatchItem } from "./db";
+import { filterItems, pickBest, type Candidate } from "./filter";
+import { fetchNyaa, type NyaaItem } from "./nyaa";
 import { formatNotification, notify } from "./notify/index";
+
+const seenRow = (w: WatchItem, c: Candidate) => ({
+  watchlist_id: w.id,
+  season: c.season,
+  episode: c.episode,
+  info_hash: c.infoHash,
+  release_title: c.title,
+});
+
+// one Nyaa request per distinct query per run, shared by every row/user that uses it.
+// The promise is cached even when it fails, so a broken query isn't retried per row.
+const feeds = new Map<string, Promise<NyaaItem[]>>();
+const feed = (query: string) => {
+  const key = query.trim().toLowerCase();
+  let p = feeds.get(key);
+  if (!p) {
+    const delay = feeds.size ? sleep(config.REQUEST_DELAY_MS) : Promise.resolve(); // go easy on Nyaa
+    p = delay.then(() => fetchNyaa(query));
+    feeds.set(key, p);
+  }
+  return p;
+};
 
 const watchlist = await activeWatchlist();
 let fresh = 0;
 let failed = 0;
 
-for (const [i, w] of watchlist.entries()) {
-  if (i > 0) await sleep(config.REQUEST_DELAY_MS); // sequential on purpose, go easy on Nyaa
+for (const w of watchlist) {
   try {
-    const best = pickBest(filterItems(await fetchNyaa(w.query), w));
+    const best = pickBest(filterItems(await feed(w.query), w));
+    const topic = w.profiles?.ntfy_topic ?? null;
+
+    // Mark what's on Nyaa as seen without sending anything:
+    // - first scan of a new row (spam guard, per season+episode so a new season still notifies)
+    // - user without a topic yet, so setting one later doesn't flood
+    if (!w.seeded || (w.user_id && !topic)) {
+      const why = w.seeded ? "kullanıcının ntfy topic'i yok" : "ilk tarama";
+      console.log(`[sessiz] ${w.title}: ${best.length} bölüm görüldü sayıldı (${why})`);
+      if (!config.DRY_RUN) {
+        if (best.length) await markSeen(best.map((c) => seenRow(w, c)));
+        if (!w.seeded) await setSeeded(w.id);
+      }
+      continue;
+    }
+
     const seen = await seenKeys(w.id);
 
     for (const c of best.filter((c) => !seen.has(episodeKey(c.season, c.episode)))) {
@@ -22,17 +58,11 @@ for (const [i, w] of watchlist.entries()) {
         console.log(`[dry-run] ${n.title} | ${n.body} | ${n.url}`);
         continue;
       }
-      await notify(n);
+      await notify(n, topic);
       fresh++;
       console.log(`[gönderildi] ${n.title}`);
       try {
-        await markSeen({
-          watchlist_id: w.id,
-          season: c.season,
-          episode: c.episode,
-          info_hash: c.infoHash,
-          release_title: c.title,
-        });
+        await markSeen(seenRow(w, c));
       } catch (e) {
         console.error(`[${w.title}] bildirim gitti ama kayıt yazılamadı, sonraki run tekrar gönderebilir`);
         throw e;
@@ -44,5 +74,7 @@ for (const [i, w] of watchlist.entries()) {
   }
 }
 
-console.log(`tarandı: ${watchlist.length}, yeni: ${fresh}, hata: ${failed}${config.DRY_RUN ? " (dry-run)" : ""}`);
+console.log(
+  `tarandı: ${watchlist.length} kayıt / ${feeds.size} sorgu, yeni: ${fresh}, hata: ${failed}${config.DRY_RUN ? " (dry-run)" : ""}`,
+);
 if (failed) process.exitCode = 1;

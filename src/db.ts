@@ -10,8 +10,12 @@ export interface WatchItem {
   min_episode: number | null;
   groups: string[] | null;
   active: boolean;
+  seeded: boolean; // false → next run marks what's already on Nyaa as seen, sends nothing
+  user_id: string | null; // null = added via CLI, notified through the env channels
   created_at: string;
 }
+
+export type ScanItem = WatchItem & { profiles: { ntfy_topic: string | null } | null };
 
 export interface SeenEpisode {
   watchlist_id: string;
@@ -33,8 +37,8 @@ export function must<T>({ data, error }: { data: T | null; error: { message: str
 
 export const episodeKey = (season: number, episode: number) => `${season}:${Number(episode)}`;
 
-export async function activeWatchlist(): Promise<WatchItem[]> {
-  return must(await db.from("watchlist").select("*").eq("active", true).order("created_at"));
+export async function activeWatchlist(): Promise<ScanItem[]> {
+  return must(await db.from("watchlist").select("*, profiles(ntfy_topic)").eq("active", true).order("created_at"));
 }
 
 export async function seenKeys(watchlistId: string): Promise<Set<string>> {
@@ -42,6 +46,10 @@ export async function seenKeys(watchlistId: string): Promise<Set<string>> {
     await db.from("seen_episodes").select("season, episode").eq("watchlist_id", watchlistId),
   );
   return new Set(rows.map((r) => episodeKey(r.season, r.episode)));
+}
+
+export async function setSeeded(id: string): Promise<void> {
+  must(await db.from("watchlist").update({ seeded: true }).eq("id", id));
 }
 
 export async function markSeen(rows: SeenEpisode | SeenEpisode[]): Promise<void> {

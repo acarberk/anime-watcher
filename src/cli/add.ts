@@ -1,7 +1,5 @@
 import { parseArgs } from "node:util";
-import { db, markSeen, must, type WatchItem } from "../db";
-import { filterItems, pickBest } from "../filter";
-import { fetchNyaa } from "../nyaa";
+import { db, must, type WatchItem } from "../db";
 
 const USAGE = `Kullanım: pnpm watch:add "<başlık>" [--query "<nyaa arama>"] [--regex "<desen>"]
                       [--season <n>] [--groups SubsPlease,Erai-raws] [--from <n>]
@@ -33,42 +31,24 @@ if (!title) {
   console.error(USAGE);
   process.exit(1);
 }
+if (values.regex) new RegExp(values.regex); // fail fast on an invalid pattern
 
+const from = toInt(values.from, "from");
 const row = {
   title,
   query: values.query ?? title,
   title_regex: values.regex ?? null,
   season: toInt(values.season, "season"),
   groups: values.groups?.split(",").map((g) => g.trim()).filter(Boolean) ?? null,
-  min_episode: 0,
+  min_episode: from === null ? 0 : from - 1,
+  // unseeded → the next run marks what's already on Nyaa as seen (first-run spam guard)
+  seeded: from !== null,
 };
-if (row.title_regex) new RegExp(row.title_regex); // fail fast on an invalid pattern
-
-const from = toInt(values.from, "from");
-if (from !== null) row.min_episode = from - 1;
-
-// first-run spam guard: episodes already on Nyaa are seeded into seen_episodes per (season, episode).
-// Not a max-episode min_episode: a stray "S1 - 24" would hide S2 E11-24 forever.
-const existing = from === null ? pickBest(filterItems(await fetchNyaa(row.query), row)) : [];
 
 const [added]: WatchItem[] = must(await db.from("watchlist").insert(row).select());
-try {
-  if (existing.length)
-    await markSeen(
-      existing.map((c) => ({
-        watchlist_id: added.id,
-        season: c.season,
-        episode: c.episode,
-        info_hash: c.infoHash,
-        release_title: c.title,
-      })),
-    );
-} catch (e) {
-  // without the seed the next run would notify every old episode
-  must(await db.from("watchlist").delete().eq("id", added.id));
-  throw e;
-}
-
 console.log(`Eklendi: ${added.title} (${added.id})`);
-if (from !== null) console.log(`${from}. bölüm ve sonrası bildirilecek`);
-else console.log(`Nyaa'daki ${existing.length} mevcut bölüm görüldü sayıldı, sonrakiler bildirilecek`);
+console.log(
+  from !== null
+    ? `${from}. bölüm ve sonrası bildirilecek`
+    : "İlk taramada Nyaa'daki mevcut bölümler görüldü sayılacak, sonrakiler bildirilecek",
+);

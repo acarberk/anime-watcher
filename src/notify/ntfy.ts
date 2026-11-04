@@ -2,7 +2,7 @@ import { config } from "../config";
 import type { Notification } from "./index";
 
 // JSON publish instead of Title/Click headers: fetch rejects non-Latin-1 header values (🆕, ö)
-export async function ntfy(n: Notification): Promise<void> {
+export async function ntfy(n: Notification, topic = config.NTFY_TOPIC): Promise<void> {
   const res = await fetch(config.NTFY_URL, {
     method: "POST",
     headers: {
@@ -10,7 +10,7 @@ export async function ntfy(n: Notification): Promise<void> {
       ...(config.NTFY_TOKEN && { Authorization: `Bearer ${config.NTFY_TOKEN}` }),
     },
     body: JSON.stringify({
-      topic: config.NTFY_TOPIC,
+      topic,
       title: n.title,
       message: n.body,
       tags: ["tv"],

@@ -2,6 +2,8 @@
 
 Takip ettiğin animelerin yeni bölümleri nyaa.si'de çıkınca bildirim gönderir. İngilizce altyazılı (`1_2`), en az 1080p, bölüm başına tek bildirim. GitHub Actions'ta 30 dakikada bir çalışır, state Supabase'de tutulur.
 
+**Arayüz:** https://acarberk.github.io/anime-watcher/ — telefonda "Ana Ekrana Ekle" ile uygulama gibi kurulur (PWA). Her kullanıcı kendi listesini ve kendi ntfy topic'ini yönetir.
+
 ## Kurulum
 
 Node 24 ve pnpm 10 gerekir (pnpm yoksa `corepack enable` veya her komutta `npx pnpm@10.18.0`).
@@ -17,10 +19,14 @@ pnpm test
 ## Supabase
 
 1. [supabase.com](https://supabase.com)'da yeni proje aç.
-2. SQL Editor → `supabase/migrations/0001_init.sql` içeriğini yapıştır → Run. (Supabase CLI kullanıyorsan: `supabase db push`.)
+2. SQL Editor → `supabase/migrations/` altındaki dosyaları sırayla yapıştır → Run. (Supabase CLI kullanıyorsan: `supabase db push`.)
 3. Project Settings → API: `Project URL` → `SUPABASE_URL`, `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`.
+4. Auth → URL Configuration: Site URL ve Redirect URL olarak arayüz adresi (`https://<kullanıcı>.github.io/anime-watcher/`, redirect'te sonuna `**`).
+5. `docs/index.html` içindeki Supabase URL ve publishable key'i kendi projeninkilerle değiştir.
 
-RLS açık ve policy yok; tablolara yalnızca service_role key erişir. Bu key'i hiçbir yerde public etme.
+Tüm tablolarda RLS açık. Arayüz publishable key ile çalışır; policy'ler her kullanıcıyı kendi satırlarıyla sınırlar. Cron service_role key ile her şeyi okur — bu key'i hiçbir yerde public etme.
+
+**Yeni kayıtlar:** Auth → Sign In / Providers → "Allow new users to sign up" kapalı tutulur; başkalarını davet etmek bilinçli bir karar olmalı. Ücretsiz Supabase maili yalnızca organizasyon üyelerine ve saatte birkaç adet gönderir; başkalarına açmadan önce özel SMTP gerekir.
 
 ## ntfy
 
@@ -51,6 +57,10 @@ Elle çalıştırma: Actions → check → Run workflow (`dry_run` işaretlenirs
 
 ## Watchlist yönetimi
 
+Normalde arayüzden: giriş yap → bildirim kanalı (ntfy topic) kaydet → anime ekle. "Test bildirimi" ile topic'i doğrula.
+
+CLI (service_role ile, `.env` gerekir). CLI ile eklenen kayıtların kullanıcısı yoktur: env'deki kanallara (`NOTIFY_CHANNELS`, `NTFY_TOPIC`) bildirilir ve arayüzde görünmez.
+
 ```bash
 pnpm watch:add "Frieren" --query "Sousou no Frieren"
 pnpm watch:add "Dandadan" --query "Dandadan" --season 2 --groups SubsPlease,Erai-raws
@@ -59,11 +69,13 @@ pnpm watch:list
 pnpm watch:remove <id>          # veya tam başlık: pnpm watch:remove "Frieren"
 ```
 
-- `watch:add` Nyaa'yı bir kez tarar ve şu an mevcut bölümleri (sezon + bölüm bazında) `seen_episodes`'a yazar; böylece ilk run'da eski bölümler bildirilmez, yeni sezon yine bildirilir.
-- `--from 5` → tarama yapılmaz, 5. bölüm ve sonrası bildirilir (`min_episode = 4`).
+- Yeni eklenen kayıt (`seeded=false`) ilk taramada Nyaa'da şu an olan bölümleri sezon + bölüm bazında bildirimsiz görüldü sayar; böylece eski bölümler bildirilmez, yeni sezon yine bildirilir. Arayüzden de CLI'dan da aynı.
+- `--from 5` / arayüzde "Şu bölümden itibaren: 5" → ilk tarama atlanır, 5. bölüm ve sonrası bildirilir (`min_episode = 4`).
+- Durdurulan bir anime devam ettirilince tekrar ilk tarama yapılır; arada çıkan bölümler toplu bildirim olarak gelmez.
+- Aynı Nyaa araması birden fazla kayıtta/kullanıcıda varsa her run'da tek istek atılır.
 - `--query` verilmezse başlık arama terimi olarak kullanılır. Arama sonucunda alakasız seriler (mini anime, spin-off) çıkıyorsa `--regex` ile daralt.
 - Gruplar aynı seriyi farklı numaralandırabilir (ör. SubsPlease `- 30`, Erai-raws `S3 - 06`). Çift bildirim alırsan `--groups` ile tek grup seç.
-- Watchlist'i Supabase dashboard → Table Editor'dan da düzenleyebilirsin (`active=false` geçici durdurur).
+- Kullanıcının ntfy topic'i yoksa bölümleri bildirimsiz görüldü sayılır (topic sonradan girilince birikmiş bildirim yağmaz).
 
 ## Yerel çalıştırma
 

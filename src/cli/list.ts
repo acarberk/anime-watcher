@@ -6,6 +6,7 @@ else
   console.table(
     rows.map((w) => ({
       id: w.id,
+      user: w.user_id?.slice(0, 8) ?? "cli",
       title: w.title,
       query: w.query,
       season: w.season ?? "",

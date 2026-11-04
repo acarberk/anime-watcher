@@ -10,7 +10,7 @@ export interface Notification {
   url: string;
 }
 
-const senders: Record<Channel, (n: Notification) => Promise<void>> = { ntfy, telegram };
+const senders: Record<Channel, (n: Notification) => Promise<void>> = { ntfy: (n) => ntfy(n), telegram };
 
 export function formatNotification(w: Pick<WatchItem, "title">, c: Candidate): Notification {
   const season = c.season > 1 ? ` S${c.season}` : "";
@@ -21,6 +21,8 @@ export function formatNotification(w: Pick<WatchItem, "title">, c: Candidate): N
   };
 }
 
-export async function notify(n: Notification): Promise<void> {
+// rows of a signed-in user go only to that user's topic, never to the env (owner) channels
+export async function notify(n: Notification, userTopic: string | null): Promise<void> {
+  if (userTopic) return ntfy(n, userTopic);
   await Promise.all(config.NOTIFY_CHANNELS.map((ch) => senders[ch](n)));
 }

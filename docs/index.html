@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Anime Watcher</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#111318">
+  <meta name="apple-mobile-web-app-title" content="Anime Watcher">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f9; --card: #fff; --text: #15171c; --muted: #646b78; --line: #e3e6eb;
+      --accent: #4f6bed; --danger: #c8394a; --ok: #2e8b57;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111318; --card: #1a1d24; --text: #e8eaef; --muted: #9aa1ad; --line: #2a2e38;
+        --accent: #7b91ff; --danger: #ff6b7d; --ok: #5cc98a;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 640px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px 48px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    h1 { font-size: 20px; margin: 0; }
+    h2 { font-size: 15px; margin: 0 0 10px; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 4px; }
+    input { width: 100%; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button { font: inherit; border: 0; border-radius: 8px; padding: 9px 14px; background: var(--accent); color: #fff; cursor: pointer; }
+    button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); }
+    button:disabled { opacity: .6; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .msg { font-size: 13px; margin: 8px 0 0; color: var(--muted); }
+    .msg:empty { display: none; }
+    .msg.err { color: var(--danger); }
+    .msg.ok { color: var(--ok); }
+    .hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; gap: 8px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); }
+    li:first-child { border-top: 0; padding-top: 0; }
+    li .info { flex: 1; min-width: 0; }
+    li .title { font-weight: 600; }
+    li .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    li button { padding: 6px 10px; font-size: 13px; }
+    .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); margin-top: 4px; }
+    .paused .info { opacity: .55; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Anime Watcher</h1>
+    <button id="logout" class="ghost" hidden>Çıkış</button>
+  </header>
+
+  <section id="login" hidden>
+    <h2>Giriş</h2>
+    <!-- password, not magic link: iOS home-screen apps don't share Safari's session, so a link from Mail
+         would log in Safari instead of the installed app -->
+    <form id="login-form">
+      <label for="email">E-posta</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <label for="password">Şifre</label>
+      <input id="password" type="password" autocomplete="current-password" minlength="8" required>
+      <div class="actions"><button>Giriş yap</button><button type="button" id="signup" class="ghost">Kayıt ol</button></div>
+      <p class="hint">İlk kez: e-posta ve şifre yaz, "Kayıt ol"a bas, mailindeki onay linkine tıkla, sonra giriş yap.</p>
+    </form>
+    <p id="login-msg" class="msg"></p>
+  </section>
+
+  <section id="add-section" hidden>
+    <h2>Anime ekle</h2>
+    <form id="add">
+      <label for="f-title">Başlık (bildirimde görünür)</label>
+      <input id="f-title" name="title" required placeholder="Frieren">
+      <label for="f-query">Nyaa araması</label>
+      <input id="f-query" name="query" placeholder="Boşsa başlık kullanılır, ör. Sousou no Frieren">
+      <div class="row">
+        <div><label for="f-season">Sezon</label><input id="f-season" name="season" type="number" min="1" step="1" placeholder="tümü"></div>
+        <div><label for="f-from">Şu bölümden itibaren</label><input id="f-from" name="from" type="number" min="0" step="1" placeholder="yeni çıkanlar"></div>
+      </div>
+      <details>
+        <summary>Gelişmiş</summary>
+        <label for="f-groups">Gruplar (virgülle)</label>
+        <input id="f-groups" name="groups" placeholder="SubsPlease, Erai-raws">
+        <label for="f-regex">Başlık regex</label>
+        <input id="f-regex" name="regex" placeholder="^\[SubsPlease\]">
+      </details>
+      <div class="actions"><button>Ekle</button></div>
+      <p class="hint">Yeni eklenen anime ilk taramada (en geç 30 dk) Nyaa'da şu an olan bölümleri görüldü sayar; sonra çıkanlar bildirilir.</p>
+    </form>
+    <p id="add-msg" class="msg"></p>
+  </section>
+
+  <section id="list-section" hidden>
+    <h2>Takip listesi</h2>
+    <ul id="list"></ul>
+    <p id="list-msg" class="msg"></p>
+  </section>
+
+  <section id="settings" hidden>
+    <h2>Bildirim kanalı</h2>
+    <p class="hint">Telefona ntfy uygulamasını kur ve bu topic'e abone ol. Topic'i bilen bildirimlerini okuyabilir; tahmin edilemez tut.</p>
+    <form id="topic-form">
+      <label for="topic">ntfy topic</label>
+      <input id="topic" required pattern="[A-Za-z0-9_\-]{1,64}" autocomplete="off" spellcheck="false">
+      <div class="actions">
+        <button>Kaydet</button>
+        <button type="button" id="gen" class="ghost">Rastgele üret</button>
+        <button type="button" id="test" class="ghost">Test bildirimi</button>
+      </div>
+    </form>
+    <p id="topic-msg" class="msg"></p>
+  </section>
+</main>
+
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm";
+
+  // publishable key is public by design; RLS limits every user to their own rows
+  const sb = createClient("https://uuodvqphbulhjbphhaas.supabase.co", "sb_publishable_Sq_ZQAtlp0yTrRk0fPc11A_AYZyTvWj");
+  const NTFY_URL = "https://ntfy.sh/";
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+  const say = (id, text, kind = "") => {
+    $(id).textContent = text;
+    $(id).className = `msg ${kind}`;
+  };
+
+  let user = null;
+
+  // supabase calls made inside onAuthStateChange can deadlock, so defer
+  sb.auth.onAuthStateChange((event, session) =>
+    setTimeout(async () => {
+      // a password recovery link (sent from the dashboard) lands here
+      if (event === "PASSWORD_RECOVERY") {
+        const password = prompt("Yeni şifre (en az 8 karakter)");
+        if (password) {
+          const { error } = await sb.auth.updateUser({ password });
+          alert(error ? error.message : "Şifre güncellendi.");
+        }
+      }
+      show(session?.user ?? null);
+    }, 0),
+  );
+
+  async function show(u) {
+    user = u;
+    $("login").hidden = !!user;
+    $("logout").hidden = !user;
+    for (const id of ["settings", "add-section", "list-section"]) $(id).hidden = true;
+    if (!user) return;
+
+    const { data, error } = await sb.from("profiles").select("ntfy_topic").maybeSingle();
+    $("settings").hidden = false;
+    if (error) return say("topic-msg", error.message, "err");
+    $("topic").value = data?.ntfy_topic ?? "";
+
+    // a watchlist row needs a profile (FK) and somewhere to send notifications
+    const ready = !!data?.ntfy_topic;
+    if (!ready) return say("topic-msg", "Başlamak için bir topic kaydet.");
+    $("add-section").hidden = false;
+    $("list-section").hidden = false;
+    load();
+  }
+
+  // --- login
+  const creds = () => ({ email: $("email").value.trim(), password: $("password").value });
+  const authError = (m) =>
+    ({
+      "Invalid login credentials": "E-posta veya şifre yanlış.",
+      "Email not confirmed": "Önce mailindeki onay linkine tıkla.",
+      "Signups not allowed for this instance": "Yeni kayıtlar şu an kapalı.",
+    })[m] ?? m;
+
+  $("login-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const { error } = await sb.auth.signInWithPassword(creds());
+    if (error) say("login-msg", authError(error.message), "err");
+  };
+
+  $("signup").onclick = async () => {
+    if (!$("login-form").reportValidity()) return;
+    const { data, error } = await sb.auth.signUp({
+      ...creds(),
+      options: { emailRedirectTo: location.origin + location.pathname },
+    });
+    if (error) return say("login-msg", authError(error.message), "err");
+    if (!data.session) say("login-msg", "Onay maili gönderildi. Linke tıkla, sonra buradan giriş yap.", "ok");
+  };
+
+  $("logout").onclick = () => sb.auth.signOut();
+
+  // --- notification channel
+  $("gen").onclick = () => {
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    $("topic").value = "anime-" + Array.from(bytes, (b) => (b % 36).toString(36)).join("");
+  };
+
+  $("topic-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const { error } = await sb.from("profiles").upsert({ user_id: user.id, ntfy_topic: $("topic").value.trim() });
+    if (error) return say("topic-msg", error.message, "err");
+    await show(user);
+    say("topic-msg", "Kaydedildi.", "ok");
+  };
+
+  $("test").onclick = async () => {
+    const topic = $("topic").value.trim();
+    if (!topic) return say("topic-msg", "Önce bir topic gir.", "err");
+    const res = await fetch(NTFY_URL, {
+      method: "POST",
+      body: JSON.stringify({ topic, title: "Anime Watcher", message: "Test bildirimi ✔", tags: ["tv"] }),
+    }).catch(() => null);
+    say("topic-msg", res?.ok ? "Gönderildi, telefona bak." : `ntfy hatası: ${res?.status ?? "ağ"}`, res?.ok ? "ok" : "err");
+  };
+
+  // --- watchlist
+  $("add").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const s = (k) => String(f.get(k) ?? "").trim();
+    const int = (k) => (s(k) === "" ? null : Number(s(k)));
+
+    const title = s("title");
+    const regex = s("regex") || null;
+    if (regex) {
+      try {
+        new RegExp(regex, "i"); // same engine the cron uses
+      } catch {
+        return say("add-msg", "Regex geçersiz.", "err");
+      }
+    }
+    const from = int("from");
+    const groups = s("groups").split(",").map((g) => g.trim()).filter(Boolean);
+
+    const { error } = await sb.from("watchlist").insert({
+      title,
+      query: s("query") || title,
+      title_regex: regex,
+      season: int("season"),
+      groups: groups.length ? groups : null,
+      // same as `watch:add --from n`: n and later are notified, no first-scan seeding
+      min_episode: from === null ? 0 : from - 1,
+      seeded: from !== null,
+    });
+    if (error) return say("add-msg", error.message, "err");
+    e.target.reset();
+    say("add-msg", `${title} eklendi.`, "ok");
+    load();
+  };
+
+  async function load() {
+    const [w, s] = await Promise.all([
+      sb.from("watchlist").select("*").order("created_at"),
+      // ponytail: reads every seen row; fine for a personal list, switch to a max() view past ~1000 rows
+      sb.from("seen_episodes").select("watchlist_id, season, episode"),
+    ]);
+    const error = w.error || s.error;
+    if (error) return say("list-msg", error.message, "err");
+
+    const last = new Map();
+    for (const r of s.data) {
+      const cur = last.get(r.watchlist_id);
+      if (!cur || r.season > cur.season || (r.season === cur.season && r.episode > cur.episode)) last.set(r.watchlist_id, r);
+    }
+    $("list").replaceChildren(...w.data.map((row) => item(row, last.get(row.id))));
+    say("list-msg", w.data.length ? "" : "Henüz anime yok.");
+  }
+
+  function item(row, seen) {
+    const li = el("li", row.active ? "" : "paused");
+    const info = el("div", "info");
+    info.append(el("div", "title", row.title));
+
+    const meta = [
+      row.query !== row.title && `"${row.query}"`,
+      row.season && `Sezon ${row.season}`,
+      row.groups?.join(", "),
+      row.title_regex && `/${row.title_regex}/`,
+    ].filter(Boolean).join(" · ");
+    if (meta) info.append(el("div", "meta", meta));
+
+    const status = !row.active ? "durduruldu"
+      : !row.seeded ? "ilk tarama bekleniyor"
+      : seen ? `son: ${seen.season > 1 ? `S${seen.season} ` : ""}${seen.episode}. bölüm`
+      : "henüz bölüm yok";
+    info.append(el("span", "badge", status));
+
+    const toggle = el("button", "ghost", row.active ? "Durdur" : "Devam");
+    toggle.onclick = async () => {
+      // resuming re-seeds, so episodes released while paused don't arrive as a burst
+      const patch = row.active ? { active: false } : { active: true, seeded: false };
+      const { error } = await sb.from("watchlist").update(patch).eq("id", row.id);
+      error ? say("list-msg", error.message, "err") : load();
+    };
+
+    const del = el("button", "danger", "Sil");
+    del.onclick = async () => {
+      if (!confirm(`"${row.title}" silinsin mi?`)) return;
+      const { error } = await sb.from("watchlist").delete().eq("id", row.id);
+      error ? say("list-msg", error.message, "err") : load();
+    };
+
+    li.append(info, toggle, del);
+    return li;
+  }
+</script>
+</body>
+</html>
