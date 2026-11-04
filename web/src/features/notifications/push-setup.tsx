@@ -171,7 +171,7 @@ export function PushSetup({
           <Title sub="Brave blocks website alerts until its push service is on.">Turn on push in Brave</Title>
           <StepList
             items={[
-              { icon: <SettingsIcon />, text: <>Paste this into the address bar:<span className="mt-2 block"><TopicDisplay topic="brave://settings/privacy" /></span></> },
+              { icon: <SettingsIcon />, text: <>Paste this into the address bar:<span className="mt-2 block"><TopicDisplay topic="brave://settings/privacy" wrap /></span></> },
               { icon: <BellRingIcon />, text: <>Turn on <span className="font-medium">Use Google services for push messaging</span></> },
               { icon: <RefreshCwIcon />, text: <>Restart Brave, come back and try again</> },
             ]}
